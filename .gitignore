@@ -1,15 +1,32 @@
-# STM32CubeIDE / build
+# Build outputs (STM32CubeIDE / make / etc.)
 **/Debug/
 **/Release/
-**/.settings/
-**/.build/
+**/build/
+**/out/
+**/cmake-build*/
+
+# Intermediates
 *.o
-*.elf
+*.d
+*.su
 *.map
-*.bin
-*.hex
+*.lst
 *.log
 
-# OS
+# Firmware binaries
+*.elf
+*.bin
+*.hex
+*.s19
+*.srec
+*.a
+
+# OS cruft
 .DS_Store
 Thumbs.db
+
+# VS Code (optional – 편하면 포함)
+.vscode/
+
+# ---- Keep CubeIDE project metadata tracked ----
+# DO NOT ignore: .project, .cproject, .settings/, *.ioc
