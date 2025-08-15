@@ -1,1 +1,16 @@
-*  @smart-plant-controler/core
+# 기본값: 매칭 안 되는 파일은 core 팀이 오너
+*                                   @smart-plant-controler/core
+
+# STM32 일반 구조는 stm32 팀
+/Core/                              @smart-plant-controler/stm32
+/Drivers/                           @smart-plant-controler/stm32
+/Middlewares/                       @smart-plant-controler/stm32
+/Src/                               @smart-plant-controler/stm32
+/Inc/                               @smart-plant-controler/stm32
+/*.ioc                              @smart-plant-controler/stm32
+/CMakeLists.txt                     @smart-plant-controler/stm32
+/Makefile                           @smart-plant-controler/stm32
+
+# 문서/워크플로는 core
+/docs/                              @smart-plant-controler/core
+/.github/                           @smart-plant-controler/core
