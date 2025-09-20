@@ -4,16 +4,6 @@
   * @file           : main.c
   * @brief          : Main program body
   ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
@@ -43,8 +33,8 @@
 #define DEBOUNCE_MS              30U     // 플로트 스위치 디바운스(ms)
 
 /* ADC 보정(현장 캘리브레이션 권장) */
-#define ADC_WET_REF              1200U   // 충분히 젖은 상태 ADC 평균값
-#define ADC_DRY_REF              3000U   // 마른 상태 ADC 평균값
+#define ADC_WET_REF              1090U   // 충분히 젖은 상태 ADC 평균값 (수정됨)
+#define ADC_DRY_REF              4090U   // 마른 상태 ADC 평균값 (수정됨)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -103,12 +93,12 @@ static void send_W_ok(void);
 /* ESP32(USART1) + PC(USART2) 동시 송신 */
 static void uart_send_str(const char *s){
     uint16_t len = (uint16_t)strlen(s);
-    HAL_UART_Transmit(&huart1, (uint8_t*)s, len, HAL_MAX_DELAY); // ESP32
-    HAL_UART_Transmit(&huart2, (uint8_t*)s, len, HAL_MAX_DELAY); // PC
+    HAL_UART_Transmit(&huart1, (uint8_t*)s, len, 10);
+    HAL_UART_Transmit(&huart2, (uint8_t*)s, len, 10);
 }
 /* PC 터미널(USART2) 전용 로그 */
 static void pc_log(const char *s){
-    HAL_UART_Transmit(&huart2, (uint8_t*)s, (uint16_t)strlen(s), HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart2, (uint8_t*)s, (uint16_t)strlen(s), 10);
 }
 
 static void pump_set(bool on){
@@ -187,6 +177,8 @@ int main(void)
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
   /* USER CODE BEGIN Init */
@@ -234,8 +226,15 @@ int main(void)
         } else if (prev && !g_tank_empty){
           /* 부족 -> 충분 변화 확정 */
           send_F_full();
-          /* 여기서 바로 펌프 ON은 하지 않음.
-             제어 루프가 습도/히스테리시스로 판단 */
+          if (!pump_get()) {
+              pump_set(true);
+              pump_on_ms = t;
+              sent_W_for_this_oncycle = false;
+              if (!sent_W_for_this_oncycle) {
+                  send_W_ok();
+                  sent_W_for_this_oncycle = true;
+              }
+          }
         }
       }
       g_db_pending = 0;
@@ -371,7 +370,7 @@ static void MX_ADC1_Init(void)
 
   /** Configure Regular Channel
   */
-  sConfig.Channel = ADC_CHANNEL_0;                    // PA0
+  sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_71CYCLES_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -401,7 +400,7 @@ static void MX_USART1_UART_Init(void)
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;                 // RX 열어둬도 무방
+  huart1.Init.Mode = UART_MODE_TX_RX;
   huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart1.Init.OverSampling = UART_OVERSAMPLING_16;
   if (HAL_UART_Init(&huart1) != HAL_OK)
@@ -459,7 +458,6 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_AFIO_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
@@ -480,10 +478,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PB12 (Float switch) -> EXTI Rising/Falling + Pull-Up */
+  /*Configure GPIO pin : PB12 */
   GPIO_InitStruct.Pin = GPIO_PIN_12;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;                 // Pull-Up
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : RELAY_Pin */
@@ -519,7 +517,7 @@ void Error_Handler(void)
 #ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
+  * where the assert_param error has occurred.
   * @param  file: pointer to the source file name
   * @param  line: assert_param error line source number
   * @retval None
